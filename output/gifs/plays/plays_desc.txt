@@ -1,0 +1,1 @@
+This is where plays animated using animate_func.create_gif() will be saved.

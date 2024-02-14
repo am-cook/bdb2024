@@ -1,0 +1,3 @@
+This is where checkpointed .csv files will be saved.
+
+Refer to run_analyses.ipynb for what these .csv files refer to. 
