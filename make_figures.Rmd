@@ -1,0 +1,321 @@
+---
+title: "make_plots"
+output: html_document
+date: "2024-01-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(formattable)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+library(reshape2)
+library(ggpubr)
+library(cowplot)
+library(jsonlite)
+```
+
+```{r}
+SETTINGS <- jsonlite::fromJSON("SETTINGS.json")
+```
+
+
+```{r}
+qb_runs <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'mobile_qb.csv'))
+colnames(qb_runs) <- c('Quarterback', '   Eligible Runs   ', 'Team')
+qb_runs <- qb_runs %>%
+  select(c(Quarterback, Team, `   Eligible Runs   `))
+
+
+formattable(qb_runs,
+            align = c('r', 'c', 'l'),
+            list(
+              'QB' = formatter('span', style = ~style(color = 'black', font.weight = 'bold')),
+              'Team' = formatter('span', style = ~style(color = 'black')),
+              '   Eligible Runs   ' = color_tile('white', '#FFD700')
+            ),
+            table.attr = 'style="color: black; background-color: white";')
+```
+
+
+```{r}
+crash_combos <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, '/mobile_new_wdl_wlb_df.csv'))
+crash_combos$joint_strats <- as.factor(crash_combos$joint_strats)
+
+```
+
+```{r}
+# FOR JOINT STRATEGIES -- plotting mean yards gained
+combos <- c()
+joint_means <- c()
+joint_sds <- c()
+joint_ses <- c()
+
+for(combo in unique(crash_combos$joint_strats)){
+  temp_df <- crash_combos[crash_combos$joint_strats == combo, ]
+  temp_mean <- mean(temp_df$yds_gained)
+  temp_sd <- sd(temp_df$yds_gained)
+  temp_se <- temp_sd/sqrt(nrow(temp_df))
+  
+  combos <- append(combos, combo)
+  joint_means <- append(joint_means, temp_mean)
+  joint_sds <- append(joint_sds, temp_sd)
+  joint_ses <- append(joint_ses, temp_se)
+}
+
+joint_means_df <- data.frame('combo' = combos,
+                       'avg' = joint_means,
+                       'sd' = joint_sds,
+                       'se' = joint_ses)
+
+joint_bars <- ggplot(joint_means_df, aes(x = avg, y = combo)) +
+  geom_bar(stat = 'identity', fill = 'lightgray', color = 'black') +
+  geom_errorbar(aes(xmin = avg - se, xmax = avg + se, width = 0.15)) +
+  theme_classic()
+ggsave(plot = joint_bars, filename = paste0(SETTINGS$OUTPUT_FIGS, 'joint_strategy_mean_barchart.png'))
+
+joint_bars
+
+```
+
+
+```{r}
+# joint strategy violin plots
+joint_violin <- ggplot(crash_combos, aes(x = yds_gained, y = joint_strats)) + 
+  geom_violin() +
+  theme_bw() +
+  stat_summary(fun = 'mean', 
+               geom = 'crossbar',
+               width = 0.4,
+               color = 'darkblue') +
+  labs(title = 'Yards Gained by Joint WSDL/WSLB Strategies')
+ggsave(plot = joint_violin, filename = paste0(SETTINGS$OUTPUT_FIGS, 'joint_strategy_violin.png'))
+
+joint_violin
+```
+
+```{r}
+# violin plots only by wdl strategy
+wdl_violin <- ggplot(crash_combos, aes(x = yds_gained, y = wdl_strat)) + 
+  geom_violin() +
+  theme_classic() +
+  stat_summary(fun = 'mean', 
+               geom = 'crossbar',
+               width = 0.4,
+               color = 'darkblue')
+ggsave(plot = wdl_violin, filename = paste0(SETTINGS$OUTPUT_FIGS, 'wdl_strategy_violin.png'))
+wdl_violin
+```
+
+```{r}
+# violin plots only by wlb strategy
+wlb_violin <- ggplot(crash_combos, aes(x = yds_gained, y = wlb_strat)) + 
+  geom_violin() +
+  theme_classic() +
+  stat_summary(fun = 'mean', 
+               geom = 'crossbar',
+               width = 0.4,
+               color = 'darkblue')
+ggsave(plot = wlb_violin, filename = paste0(SETTINGS$OUTPUT_FIGS, 'wlb_strategy_violin.png'))
+wlb_violin
+```
+
+```{r}
+# both graphs stacked, if preferred
+stacked_violins <- ggarrange(wdl_violin, wlb_violin, ncol = 1, nrow = 2, common.legend = TRUE)
+ggsave(plot = stacked_violins, filename = paste0(SETTINGS$OUTPUT_FIGS, 'stacked_wdl_wlb_strategy_violin.png'))
+stacked_violins
+```
+
+
+```{r}
+# FOR INDIVIDUAL WDL STRATEGIES
+wdl_strats <- c()
+wdl_means <- c()
+wdl_sds <- c()
+wdl_ses <- c()
+  
+for(strat in unique(crash_combos$wdl_strat)){
+  temp_df <- crash_combos[crash_combos$wdl_strat == strat, ]
+  temp_mean <- mean(temp_df$yds_gained)
+  temp_sd <- sd(temp_df$yds_gained)
+  temp_se <- temp_sd/sqrt(nrow(temp_df))
+  
+  wdl_strats <- append(wdl_strats, strat)
+  wdl_means <- append(wdl_means, temp_mean)
+  wdl_sds <- append(wdl_sds, temp_sd)
+  wdl_ses <- append(wdl_ses, temp_se)
+}
+
+wdl_means_df <- data.frame('strat' = wdl_strats,
+                       'avg' = wdl_means,
+                       'sd' = wdl_sds,
+                       'se' = wdl_ses)
+
+wdl_bars <- ggplot(wdl_means_df, aes(x = avg, y = strat)) +
+  geom_bar(stat = 'identity', fill = 'lightgray', color = 'black') +
+  geom_errorbar(aes(xmin = avg - se, xmax = avg + se, width = 0.15)) +
+  theme_classic()
+
+ggsave(plot = wdl_bars, filename = paste0(SETTINGS$OUTPUT_FIGS, 'wdl_strategy_bars.png'))
+
+wdl_bars
+
+```
+
+```{r}
+# FOR INDIVIDUAL wlb STRATEGIES
+wlb_strats <- c()
+wlb_means <- c()
+wlb_sds <- c()
+wlb_ses <- c()
+  
+for(strat in unique(crash_combos$wlb_strat)){
+  temp_df <- crash_combos[crash_combos$wlb_strat == strat, ]
+  temp_mean <- mean(temp_df$yds_gained)
+  temp_sd <- sd(temp_df$yds_gained)
+  temp_se <- temp_sd/sqrt(nrow(temp_df))
+  
+  wlb_strats <- append(wlb_strats, strat)
+  wlb_means <- append(wlb_means, temp_mean)
+  wlb_sds <- append(wlb_sds, temp_sd)
+  wlb_ses <- append(wlb_ses, temp_se)
+}
+
+wlb_means_df <- data.frame('strat' = wlb_strats,
+                       'avg' = wlb_means,
+                       'sd' = wlb_sds,
+                       'se' = wlb_ses)
+
+wlb_bars <- ggplot(wlb_means_df, aes(x = avg, y = strat)) +
+  geom_bar(stat = 'identity', fill = 'lightgray', color = 'black') +
+  geom_errorbar(aes(xmin = avg - se, xmax = avg + se, width = 0.15)) +
+  theme_classic()
+
+ggsave(plot = wlb_bars, filename = paste0(SETTINGS$OUTPUT_FIGS, 'wlb_strategy_bars.png'))
+
+wlb_bars
+```
+
+```{r}
+table(crash_combos$joint_strats)
+```
+
+```{r}
+HOLDOUT_keep_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'HOLDOUT_keep_preds_df.csv'))
+mean_keep_forcing <- mean(HOLDOUT_keep_preds_df$forcing)
+mean_keep_no_forcing <- mean(HOLDOUT_keep_preds_df$no_forcing)
+
+
+HOLDOUT_handoff_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'HOLDOUT_handoff_preds_df.csv'))
+mean_handoff_forcing <- mean(HOLDOUT_handoff_preds_df$forcing)
+mean_handoff_no_forcing <- mean(HOLDOUT_handoff_preds_df$no_forcing)
+```
+
+```{r}
+melted_holdout_keep_preds_df <- reshape2::melt(HOLDOUT_keep_preds_df, measure.vars = c('no_forcing', 'forcing'),
+                                     variable.name = 'forcing_or_not',
+                                     value.name = 'predicted_yds')
+melted_holdout_handoff_preds_df <- reshape2::melt(HOLDOUT_handoff_preds_df, measure.vars = c('no_forcing', 'forcing'),
+                                     variable.name = 'forcing_or_not',
+                                     value.name = 'predicted_yds')
+```
+
+
+
+```{r}
+holdout_keep_density <- ggplot(melted_holdout_keep_preds_df, aes(x = predicted_yds, color = forcing_or_not)) +
+  geom_density() +
+  geom_vline(xintercept = mean_keep_forcing, color = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = mean_keep_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  theme_classic() +
+  scale_color_manual(values = c('no_forcing' = 'red', 'forcing' = 'darkblue')) +
+  theme(legend.position = 'none')
+
+ggsave(plot = holdout_keep_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_keep_density.png'))
+
+holdout_keep_density
+```
+
+```{r}
+holdout_handoff_density <- ggplot(melted_holdout_handoff_preds_df, aes(x = predicted_yds)) +
+  geom_density(aes(color = forcing_or_not)) +
+  geom_vline(xintercept = mean_handoff_forcing, color = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = mean_handoff_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  theme_classic() + 
+  scale_color_manual(values = c('no_forcing' = 'red', 'forcing' = 'darkblue'))+ 
+  theme(legend.position = 'none')
+
+ggsave(plot = holdout_handoff_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_handoff_density.png'))
+
+holdout_handoff_density
+```
+
+
+
+
+```{r}
+forced_densities <- ggarrange(holdout_keep_density, holdout_handoff_density, ncol = 2, nrow = 1)
+ggsave(plot = forced_densities, filename = paste0(SETTINGS$OUTPUT_FIGS, 'sidebyside_forced_densities.png'))
+forced_densities
+
+```
+
+
+```{r}
+y_mobile_test_yds_gained_handoff_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'y_mobile_test_yds_gained_handoff_df.csv'))
+
+y_mobile_test_yds_gained_keep_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'y_mobile_test_yds_gained_keep_df.csv'))
+```
+
+```{r}
+handoff_test_preds <- ggplot(y_mobile_test_yds_gained_handoff_df, aes(x = true_yds_gained, y = pred_yds_gained)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = 'darkblue') + 
+  theme_classic()
+ggsave(plot = handoff_test_preds, filename = paste0(SETTINGS$OUTPUT_FIGS, 'handoff_test_preds.png'))
+
+handoff_test_preds
+```
+
+```{r}
+keep_test_preds <- ggplot(y_mobile_test_yds_gained_keep_df, aes(x = true_yds_gained, y = pred_yds_gained)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = 'darkblue') + 
+  theme_classic()
+ggsave(plot = keep_test_preds, filename = paste0(SETTINGS$OUTPUT_FIGS, 'keep_test_preds.png'))
+keep_test_preds
+```
+
+```{r}
+test_yds_gained_fig <- ggarrange(handoff_test_preds, keep_test_preds, nrow = 1, ncol = 2)
+ggsave(plot = test_yds_gained_fig, filename = paste0(SETTINGS$OUTPUT_FIGS, 'test_yds_gained_fig_sidebyside.png'))
+test_yds_gained_fig
+```
+
+
+
+
+```{r}
+avg_combo_yds <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'mobile_new_average_res.csv'))
+wdl_strats <- c(rep('contain', 4), rep('crash', 4), rep('strong_contain', 4), rep('strong_crash', 3))
+wlb_strats <- c(rep(c('contain', 'crash', 'strong_contain', 'strong_crash'), 3), 'contain', 'crash', 'strong_crash')
+avg_combo_yds$wdl_strat <- wdl_strats
+avg_combo_yds$wlb_strat <- wlb_strats
+
+avg_combo_yds <- avg_combo_yds %>%
+  select(-joint_strats) %>%
+  select(wdl_strat, wlb_strat, yds_gained) %>%
+  arrange(yds_gained)
+
+avg_combo_yds
+```
+
+
+
+
+

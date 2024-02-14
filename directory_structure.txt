@@ -1,0 +1,14 @@
+.
+./output
+./output/figs
+./output/gifs
+./output/gifs/temp_images
+./output/gifs/evolving_heatmaps
+./output/gifs/plays
+./models
+./data
+./data/raw_data
+./data/raw_data/provided_data
+./data/raw_data/external_data
+./data/processed
+./data/processed/agg_data
