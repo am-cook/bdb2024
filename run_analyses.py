@@ -1095,26 +1095,33 @@ X_mobile_read_train, X_mobile_read_test, y_mobile_read_train, y_mobile_read_test
 
 # use SMOTE to generate more data
 mobile_sm = SMOTE(random_state = 42, k_neighbors=3) # k = 3 nearest neighbors
-X_mobile_read_classifier_sm, y_mobile_read_classifier_sm = mobile_sm.fit_resample(X_mobile_read_USE, y_mobile_read_USE)
+
+
+X_mobile_train_sm, y_mobile_train_sm = mobile_sm.fit_resample(X_mobile_read_train, y_mobile_read_train)
+
+# X_mobile_read_classifier_sm, y_mobile_read_classifier_sm = mobile_sm.fit_resample(X_mobile_read_USE, y_mobile_read_USE)
 # print(Counter(y_mobile_read_USE))
 
 mobile_sm_read_clf = xgb.XGBClassifier()
 
-# divide SMOTE data into train test split
-X_mobile_train_sm, X_mobile_test_sm, y_mobile_train_sm, y_mobile_test_sm = train_test_split(
-    X_mobile_read_classifier_sm,
-    y_mobile_read_classifier_sm,
-    test_size = 0.25,
-    random_state = 42
-)
+# # divide SMOTE data into train test split
+# X_mobile_train_sm, X_mobile_test_sm, y_mobile_train_sm, y_mobile_test_sm = train_test_split(
+#     X_mobile_read_classifier_sm,
+#     y_mobile_read_classifier_sm,
+#     test_size = 0.25,
+#     random_state = 42
+# )
+
 mobile_sm_read_clf.fit(X_mobile_train_sm, y_mobile_train_sm)
 pickle.dump(mobile_sm_read_clf, open(f'{settings['MODELS']}mobile_sm_read_clf.pkl', 'wb'))
 
 
-mobile_sm_pred_read = mobile_sm_read_clf.predict(X_mobile_test_sm)
+mobile_sm_pred_read = mobile_sm_read_clf.predict(X_mobile_read_test)
 
-accuracy_score = metrics.accuracy_score(y_true = y_mobile_test_sm, y_pred = mobile_sm_pred_read)
-sm_cm = metrics.confusion_matrix(y_true = y_mobile_test_sm, y_pred = mobile_sm_pred_read)
+# mobile_sm_pred_read = mobile_sm_read_clf.predict(X_mobile_test_sm)
+
+accuracy_score = metrics.accuracy_score(y_true = y_mobile_read_test, y_pred = mobile_sm_pred_read)
+sm_cm = metrics.confusion_matrix(y_true = y_mobile_read_test, y_pred = mobile_sm_pred_read)
 
 disp = metrics.ConfusionMatrixDisplay(confusion_matrix = sm_cm, display_labels = ['QB', 'RB'])
 print(f'accuracy = {np.round(accuracy_score, 2)}')
@@ -1182,9 +1189,7 @@ sns.lineplot(x = list(range(-20, 50)), y = list(range(-20, 50)))
 
 print(f'correlation = {np.corrcoef(x = y_mobile_yds_gained_test_HANDOFF.iloc[:, 0], y = mobile_yds_gained_pred_HANDOFF)[0,1]}')
 plt.title('regressor accuracy on only HANDOFF')
-# plt.show()
 plt.savefig(f'{settings['OUTPUT_FIGS']}handoff_test_correlation.png')
-# print(metrics.mean_squared_error(y_true = y_mobile_yds_gained_test_HANDOFF, y_pred = mobile_yds_gained_pred_HANDOFF, squared = False))
 
 
 plt.figure()
@@ -1411,6 +1416,7 @@ strong_contain_contain_medians = wdl_median_x_pos_strongcontain + wdl_median_y_p
 crash_contain_medians_df = pd.DataFrame(columns = X_mobile_read_test.columns)
 crash_contain_medians_df.loc[0] = crash_contain_medians
 crash_contain_read = mobile_sm_read_clf.predict(crash_contain_medians_df) # == 0, so we predict KEEP and will use the KEEP regressor
+############### Note!!!!!! this is predicted 1 now!!!!!!!!! (i.e. handoff)
 
 
 contain_strongcontain_means_df = pd.DataFrame(columns = X_mobile_read_test.columns)
@@ -1479,31 +1485,33 @@ for gp in FORCED_crash_contain_X_yds_gained_KEEPER_HOLDOUT.index:
 
 # now predict yards when we force strategies
 FORCED_contain_strongcontain_HOLDOUT_HANDOFF_yds_preds = mobile_yds_gained_regressor_HANDOFF.predict(FORCED_contain_strongcontain_X_yds_gained_HANDOFF_HOLDOUT)
-FORCED_crash_contain_HOLDOUT_KEEPER_yds_preds = mobile_yds_gained_regressor_KEEP.predict(FORCED_crash_contain_X_yds_gained_KEEPER_HOLDOUT)
+# FORCED_crash_contain_HOLDOUT_KEEPER_yds_preds = mobile_yds_gained_regressor_KEEP.predict(FORCED_crash_contain_X_yds_gained_KEEPER_HOLDOUT)
+FORCED_crash_contain_HOLDOUT_KEEPER_yds_preds = mobile_yds_gained_regressor_HANDOFF.predict(FORCED_crash_contain_X_yds_gained_KEEPER_HOLDOUT)
+
 
 # formatting results, looking at per-play yardage differences (if curious)
-HOLDOUT_HANDOFF_diffs_df = pd.DataFrame({'gameplayId':[gp for ind, gp in enumerate(X_mobile_yds_gained_HOLDOUT.index) if ind in handoff_prediction_indices],
+HOLDOUT_contain_strongcontain_diffs_df = pd.DataFrame({'gameplayId':[gp for ind, gp in enumerate(X_mobile_yds_gained_HOLDOUT.index) if ind in handoff_prediction_indices],
                                         'yds_pred':FORCED_contain_strongcontain_HOLDOUT_HANDOFF_yds_preds,
                                          'true_yds':y_mobile_yds_gained_HOLDOUT_HANDOFF,
                                          'read_pred': ['handoff' for _ in range(len(handoff_prediction_indices))]})
-HOLDOUT_KEEPER_diffs_df = pd.DataFrame({'gameplayId':[gp for ind, gp in enumerate(X_mobile_yds_gained_HOLDOUT.index) if ind in keeper_prediction_indices],
+HOLDOUT_crash_contain_diffs_df = pd.DataFrame({'gameplayId':[gp for ind, gp in enumerate(X_mobile_yds_gained_HOLDOUT.index) if ind in keeper_prediction_indices],
                                         'yds_pred':FORCED_crash_contain_HOLDOUT_KEEPER_yds_preds,
                                          'true_yds':y_mobile_yds_gained_HOLDOUT_KEEPER,
                                          'read_pred': ['keep' for _ in range(len(keeper_prediction_indices))]})
-holdout_diffs_df = pd.concat([HOLDOUT_HANDOFF_diffs_df, HOLDOUT_KEEPER_diffs_df], axis = 0)
+holdout_diffs_df = pd.concat([HOLDOUT_contain_strongcontain_diffs_df, HOLDOUT_crash_contain_diffs_df], axis = 0)
 diffs = holdout_diffs_df['yds_pred'] - holdout_diffs_df['true_yds']
 holdout_diffs_df.insert(loc = holdout_diffs_df.shape[1], column = 'differences', value = diffs)
 bc_pos = [gp_bc_pos_dict[gp] for gp in holdout_diffs_df['gameplayId']]
 holdout_diffs_df.insert(loc = holdout_diffs_df.shape[1], column = 'bc_pos', value = bc_pos)
 
 # export predicted yards distributions for plotting in R
-HOLDOUT_handoff_preds_df = pd.DataFrame({'no_forcing':HOLDOUT_HANDOFF_yds_preds,
+contain_strong_contain_preds_df = pd.DataFrame({'no_forcing':HOLDOUT_HANDOFF_yds_preds,
                                  'forcing':FORCED_contain_strongcontain_HOLDOUT_HANDOFF_yds_preds})
-HOLDOUT_handoff_preds_df.to_csv(f'{settings['AGGREGATED_DATA']}HOLDOUT_handoff_preds_df.csv', index = False)
+contain_strong_contain_preds_df.to_csv(f'{settings['AGGREGATED_DATA']}contain_strong_contain_preds_df.csv', index = False)
 
-HOLDOUT_keep_preds_df = pd.DataFrame({'no_forcing':HOLDOUT_KEEPER_yds_preds,
+crash_contain_preds_df = pd.DataFrame({'no_forcing':HOLDOUT_KEEPER_yds_preds,
                                  'forcing':FORCED_crash_contain_HOLDOUT_KEEPER_yds_preds})
-HOLDOUT_keep_preds_df.to_csv(f'{settings['AGGREGATED_DATA']}HOLDOUT_keep_preds_df.csv', index = False)
+crash_contain_preds_df.to_csv(f'{settings['AGGREGATED_DATA']}crash_contain_preds_df.csv', index = False)
 
 
 

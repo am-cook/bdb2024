@@ -206,60 +206,81 @@ table(crash_combos$joint_strats)
 ```
 
 ```{r}
-HOLDOUT_keep_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'HOLDOUT_keep_preds_df.csv'))
-mean_keep_forcing <- mean(HOLDOUT_keep_preds_df$forcing)
-mean_keep_no_forcing <- mean(HOLDOUT_keep_preds_df$no_forcing)
+contain_strong_contain_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'contain_strong_contain_preds_df.csv'))
+(mean_contain_strong_contain_forcing <- mean(contain_strong_contain_preds_df$forcing))
+(mean_contain_strong_contain_no_forcing <- mean(contain_strong_contain_preds_df$no_forcing))
 
 
-HOLDOUT_handoff_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'HOLDOUT_handoff_preds_df.csv'))
-mean_handoff_forcing <- mean(HOLDOUT_handoff_preds_df$forcing)
-mean_handoff_no_forcing <- mean(HOLDOUT_handoff_preds_df$no_forcing)
+crash_contain_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'crash_contain_preds_df.csv'))
+(mean_crash_contain_forcing <- mean(crash_contain_preds_df$forcing))
+(mean_crash_contain_no_forcing <- mean(crash_contain_preds_df$no_forcing))
 ```
 
 ```{r}
-melted_holdout_keep_preds_df <- reshape2::melt(HOLDOUT_keep_preds_df, measure.vars = c('no_forcing', 'forcing'),
+contain_strong_contain_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'contain_strong_contain_preds_df.csv'))
+(median_contain_strong_contain_forcing <- median(contain_strong_contain_preds_df$forcing))
+(median_contain_strong_contain_no_forcing <- median(contain_strong_contain_preds_df$no_forcing))
+
+
+crash_contain_preds_df <- read.csv(paste0(SETTINGS$AGGREGATED_DATA, 'crash_contain_preds_df.csv'))
+(median_crash_contain_forcing <- median(crash_contain_preds_df$forcing))
+(median_crash_contain_no_forcing <- median(crash_contain_preds_df$no_forcing))
+```
+
+
+```{r}
+melted_contain_strong_contain_preds_df <- reshape2::melt(contain_strong_contain_preds_df, measure.vars = c('no_forcing', 'forcing'),
                                      variable.name = 'forcing_or_not',
                                      value.name = 'predicted_yds')
-melted_holdout_handoff_preds_df <- reshape2::melt(HOLDOUT_handoff_preds_df, measure.vars = c('no_forcing', 'forcing'),
+melted_crash_contain_preds_df <- reshape2::melt(crash_contain_preds_df, measure.vars = c('no_forcing', 'forcing'),
                                      variable.name = 'forcing_or_not',
                                      value.name = 'predicted_yds')
 ```
 
+```{r}
+print(paste('mean_contain_strong_contain_forcing = ', mean_contain_strong_contain_forcing))
+print(paste('mean_contain_strong_contain_no_forcing = ', mean_contain_strong_contain_no_forcing))
+
+print(paste('mean_crash_contain_forcing = ', mean_crash_contain_forcing))
+print(paste('mean_crash_contain_no_forcing = ', mean_crash_contain_no_forcing))
+```
 
 
 ```{r}
-holdout_keep_density <- ggplot(melted_holdout_keep_preds_df, aes(x = predicted_yds, color = forcing_or_not)) +
+holdout_contain_strong_contain_density <- ggplot(melted_contain_strong_contain_preds_df, aes(x = predicted_yds, color = forcing_or_not)) +
   geom_density() +
-  geom_vline(xintercept = mean_keep_forcing, color = 'red', linetype = 'dashed') +
-  geom_vline(xintercept = mean_keep_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  geom_vline(xintercept = mean_contain_strong_contain_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  geom_vline(xintercept = mean_contain_strong_contain_forcing, color = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = median_contain_strong_contain_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  geom_vline(xintercept = median_contain_strong_contain_forcing, color = 'red', linetype = 'dashed') +
   theme_classic() +
-  scale_color_manual(values = c('no_forcing' = 'red', 'forcing' = 'darkblue')) +
+  scale_color_manual(values = c('no_forcing' = 'darkblue', 'forcing' = 'red')) +
   theme(legend.position = 'none')
 
-ggsave(plot = holdout_keep_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_keep_density.png'))
+# ggsave(plot = holdout_keep_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_keep_density.png'))
 
-holdout_keep_density
+holdout_contain_strong_contain_density
 ```
 
 ```{r}
-holdout_handoff_density <- ggplot(melted_holdout_handoff_preds_df, aes(x = predicted_yds)) +
+holdout_crash_contain_density <- ggplot(melted_crash_contain_preds_df, aes(x = predicted_yds)) +
   geom_density(aes(color = forcing_or_not)) +
-  geom_vline(xintercept = mean_handoff_forcing, color = 'red', linetype = 'dashed') +
-  geom_vline(xintercept = mean_handoff_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  geom_vline(xintercept = mean_crash_contain_no_forcing, color = 'darkblue', linetype = 'dashed') +
+  geom_vline(xintercept = mean_crash_contain_forcing, color = 'red', linetype = 'dashed') +
   theme_classic() + 
-  scale_color_manual(values = c('no_forcing' = 'red', 'forcing' = 'darkblue'))+ 
+  scale_color_manual(values = c('no_forcing' = 'darkblue', 'forcing' = 'red'))+
   theme(legend.position = 'none')
 
-ggsave(plot = holdout_handoff_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_handoff_density.png'))
+# ggsave(plot = holdout_handoff_density, filename = paste0(SETTINGS$OUTPUT_FIGS, 'holdout_handoff_density.png'))
 
-holdout_handoff_density
+holdout_crash_contain_density
 ```
 
 
 
 
 ```{r}
-forced_densities <- ggarrange(holdout_keep_density, holdout_handoff_density, ncol = 2, nrow = 1)
+forced_densities <- ggarrange(holdout_crash_contain_density, holdout_contain_strong_contain_density, ncol = 2, nrow = 1)
 ggsave(plot = forced_densities, filename = paste0(SETTINGS$OUTPUT_FIGS, 'sidebyside_forced_densities.png'))
 forced_densities
 
@@ -281,6 +302,7 @@ ggsave(plot = handoff_test_preds, filename = paste0(SETTINGS$OUTPUT_FIGS, 'hando
 
 handoff_test_preds
 ```
+
 
 ```{r}
 keep_test_preds <- ggplot(y_mobile_test_yds_gained_keep_df, aes(x = true_yds_gained, y = pred_yds_gained)) +
@@ -315,6 +337,11 @@ avg_combo_yds <- avg_combo_yds %>%
 avg_combo_yds
 ```
 
+```{r}
+sink("sessionInfo.txt")
+sessionInfo()
+sink()
+```
 
 
 
